@@ -6,6 +6,12 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.database import engine, Base
+from app.routers import auth, location, admin, rider
+
+# Create database tables
+Base.metadata.create_all(bind=engine)
+
 app = FastAPI(title="Auction Marketplace")
 
 # CORS middleware
@@ -24,6 +30,12 @@ Path(UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
 
 # Mount static files for uploaded images
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+
+# Include routers
+app.include_router(auth.router)
+app.include_router(location.router)
+app.include_router(admin.router)
+app.include_router(rider.router)
 
 
 @app.get("/health")
