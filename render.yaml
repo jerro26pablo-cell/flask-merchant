@@ -3,7 +3,7 @@ services:
     name: auction-marketplace
     env: python
     plan: free
-    runtime: python-3.11
+    runtime: "3.11"
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
@@ -16,7 +16,7 @@ services:
     name: auction-worker
     env: python
     plan: free
-    runtime: python-3.11
+    runtime: "3.11"
     buildCommand: pip install -r requirements.txt
     startCommand: python app/worker.py
     envVars:
