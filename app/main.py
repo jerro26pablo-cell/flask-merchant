@@ -17,8 +17,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configuration
-UPLOAD_DIR = os.getenv("UPLOAD_DIR", "/var/data/uploads")
+# Configuration - using temp directory for free tier (files won't persist on redeploy)
+# TODO: Implement cloud storage (S3/Cloudinary) for persistent image storage
+UPLOAD_DIR = os.getenv("UPLOAD_DIR", "./uploads")
 Path(UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
 
 # Mount static files for uploaded images
@@ -33,7 +34,7 @@ async def health_check():
 
 @app.post("/test-upload")
 async def test_upload(file: UploadFile = File(...)):
-    """Test upload endpoint to verify persistent disk"""
+    """Test upload endpoint (files won't persist on free tier without cloud storage)"""
     # Generate random filename
     file_extension = file.filename.split(".")[-1]
     random_filename = f"{uuid.uuid4()}.{file_extension}"
