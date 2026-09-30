@@ -38,52 +38,60 @@ class Token(BaseModel):
 @router.post("/register", response_model=Token)
 async def register(user_data: UserRegister, db: Session = Depends(get_db)):
     """Register a new user"""
-    # Check if email already exists
-    existing_user = db.query(User).filter(User.email == user_data.email).first()
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
+    try:
+        # Check if email already exists
+        existing_user = db.query(User).filter(User.email == user_data.email).first()
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered"
+            )
+        
+        # Create user
+        hashed_password = get_password_hash(user_data.password)
+        user = User(
+            email=user_data.email,
+            password_hash=hashed_password,
+            role=user_data.role.value if isinstance(user_data.role, str) else user_data.role,
+            status=UserStatus.ACTIVE
         )
-    
-    # Create user
-    hashed_password = get_password_hash(user_data.password)
-    user = User(
-        email=user_data.email,
-        password_hash=hashed_password,
-        role=user_data.role,
-        status=UserStatus.ACTIVE
-    )
-    db.add(user)
-    db.flush()  # Get user ID
-    
-    # Create profile based on role
-    if user_data.role == UserRole.BUYER:
-        profile = BuyerProfile(user_id=user.id, phone=user_data.phone, address=user_data.address)
-        db.add(profile)
-    elif user_data.role == UserRole.SELLER:
-        profile = SellerProfile(user_id=user.id, business_name=user_data.phone)
-        db.add(profile)
-    elif user_data.role == UserRole.RIDER:
-        profile = RiderProfile(user_id=user.id, phone=user_data.phone)
-        db.add(profile)
-    
-    db.commit()
-    db.refresh(user)
-    
-    # Create access token
-    access_token = create_access_token(data={"sub": user.email, "role": user.role.value})
-    
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "user": {
-            "id": user.id,
-            "email": user.email,
-            "role": user.role.value,
-            "status": user.status.value
+        db.add(user)
+        db.flush()  # Get user ID
+        
+        # Create profile based on role
+        role_value = user_data.role.value if isinstance(user_data.role, str) else user_data.role
+        if role_value == UserRole.BUYER:
+            profile = BuyerProfile(user_id=user.id, phone=user_data.phone, address=user_data.address)
+            db.add(profile)
+        elif role_value == UserRole.SELLER:
+            profile = SellerProfile(user_id=user.id, business_name=user_data.phone)
+            db.add(profile)
+        elif role_value == UserRole.RIDER:
+            profile = RiderProfile(user_id=user.id, phone=user_data.phone)
+            db.add(profile)
+        
+        db.commit()
+        db.refresh(user)
+        
+        # Create access token
+        access_token = create_access_token(data={"sub": user.email, "role": user.role.value})
+        
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "role": user.role.value,
+                "status": user.status.value
+            }
         }
-    }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Registration failed: {str(e)}"
+        )
 
 
 @router.post("/login", response_model=Token)
